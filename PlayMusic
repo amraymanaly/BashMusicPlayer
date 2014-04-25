@@ -1,12 +1,12 @@
 #!/bin/bash
 cd "$HOME/Music" # So that any download will be in the music directory
-function IsYes { d=$(echo $1 | tr [[:upper:]] [[:lower:]]);if ([[ "${d:0:1}" == 'y' ]] && [[  "${#d}" -le 4 ]]) || [[ $d == 'ok' ]];then exit 0; else exit 1;fi; }
+function IsYes { d=$(echo $1 | tr [[:upper:]] [[:lower:]]);if ([[ "${d:0:1}" == 'y' ]] && [[  "${#d}" -le 4 ]]) || [[ $d == 'ok' ]];then return 0; else return 1;fi; }
 declare -r settings_file='/etc/PlayMusic.settings';line_number=1;declare SITES=();declare player;declare recursive;declare FILE;declare FILE2
 function create_settings_file {
 	tmp_file="$HOME/Desktop/File_$RANDOM"
 	cat > $tmp_file <<- EOF
 		Player = mplayer
-		Sites = {'http://ccmixter.org/view/media/samples/mixed', 'http://ccmixter.org/view/media/remix', 'http://mp3.com/top-downloads/genre/jazz/', 'http://mp3.com/top-downloads/genre/emo/', 'http://mp3.com/top-downloads/genre/pop/'}
+		Sites = {'http://ccmixter.org/view/media/samples/mixed'}
 	EOF
 	sudo mv $tmp_file '/etc/PlayMusic.settings'
 	rm $tmp_file &>/dev/null # just in case ..
@@ -15,11 +15,11 @@ function UNINSTALL {
 	read -p 'Do you want to keep settings ? '
 	if ! IsYes $REPLY;then sudo rm '/etc/PlayMusic.settings';fi
 	sudo rm '/usr/bin/PlayMusic'
-	sudo rm '/usr/man/man1/PlayMusic.1.gz'
+	sudo rm '/usr/share/man/man1/PlayMusic.1.gz'
 	echo 'Uninstallation Success !';exit 0
 }
-if [[ -f $settings_file ]];then # going to parse the settings file
-	OlD="$IFS";IFS=$'\n';for line in $(cat $settings_file | sed -E 's/.*=( +)?//g' 2>/dev/null);do
+OlD="$IFS";if [[ -f $settings_file ]];then # going to parse the settings file
+	IFS=$'\n';for line in $(cat $settings_file | sed -E 's/.*=( +)?//g' 2>/dev/null);do
 		case $line_number in
 			1 ) player=$line;;
 			2 ) for written_site in $(echo $line | sed -E "s#\{|'|\}|,##g");do SITES[${#SITES[@]}]="$written_site";done;;
@@ -47,8 +47,15 @@ function Play { # Function for playing music according to user preferences
 }
 function Find { 
 	echo "Looking for '$1' on disk .. "; # Informing the user, if that's going to take long ( which depends on the contents of his home directory )
-	FILE=$(find ~ -name "$1.mp3" 2>/dev/null) # The main file ( the found file, or null if not found ) ..
-	[[ -n $FILE ]] && FILE2=$(find ~ -name "$1.mp3.st" 2>/dev/null) # The state file ( used for resuming in axel )
+	FILES=$(find ~ -name "$1.mp3" 2>/dev/null);clear # The main file ( the found file, or null if not found ) ..
+	if [[ $(echo "$FILES" | wc -l) -gt 1 ]];then IFS=$'\n';echo 'File was found at various places .. Which one to select ?'
+		select file in $FILES; do
+			[[ -n $file ]] || continue
+			FILE="$file";break
+		done
+		read -p 'Do you want to Delete the other ones ? ' rrf
+		if IsYes $rrf;then for file in $FILES;do if ! [[ "$file" == "$FILE" ]];then rm "$file";fi;done;IFS="$OlD";fi
+	else FILE="$FILES";fi
 	clear # Just clear, so that the user doesn't see the first message if the finding operation went quickly ..
 }
 declare -A Tracks;clear;echo 'Loading Sites ..'
@@ -65,20 +72,12 @@ select track in "${!Tracks[@]}";do
 	select choice in "Download then Play" "Just Play Online";do [[ -n $choice ]] || continue # ( already demonstrated )
 		if [[ $choice == "Download then Play" ]];then # Instead of the case statement ( since this offers only two options )
 			Find "$track" # Looking for the specified track on disk
-			not_complete=$([[ -n $FILE2 ]] && echo true || echo false) # Checking wether it's complete or not
-			sayer=$($not_complete && echo "Append to that file" || echo "ReDownload the file") # what to say ..
 			if [[ -n $FILE ]] ;then # if the track was found on disk
 				[[ $(dirname "$FILE") == "$HOME/Music" ]] || { # if the found file is not in the music directory
 					notify-send "$track was found at ($(dirname $FILE)) and was moved to ($HOME/Music)" # inform the user of the changes
-					mv "$FILE" "$HOME/Music";FILE="$HOME/Music/$name" # move the file to the music home directory
-				};echo -e "\"$track\" was found !\n\t What do you want to do ?" # tell the user about the found file
-				select choice2 in "Just $sayer" "Play that instead";do [[ -n $choice2 ]] || continue # tell him what to do
-					case $choice2 in
-						"Just $sayer") name="$FILE"; $not_complete || rm "$FILE";break;;
-						* ) Play "$FILE" true;exit 0;;
-					esac
-				done
-			fi;notify-send "Downloading ($track) .." "in [ $PWD ] ..";axel -a -o "$name" "${Tracks[$track]}" && Play "$name" true # Download & Play
+					mv "$FILE" "$HOME/Music" &>/dev/null;FILE="$HOME/Music/$name" # move the file to the music home directory
+				};name="$FILE"
+			fi;notify-send "Downloading ($track) .." "in [ $PWD ] ..";wget -cO "$name" "${Tracks[$track]}" && Play "$name" true # Download & Play
 		else Play "${Tracks[$track]}" true # Play Online
 		fi;break
 	done;break
