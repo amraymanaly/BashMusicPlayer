@@ -6,7 +6,7 @@ function create_settings_file {
 	tmp_file="$HOME/Desktop/File_$RANDOM"
 	cat > $tmp_file <<- EOF
 		Player = mplayer
-		Sites = {'http://ccmixter.org/view/media/samples/mixed'}
+		Sites = {'http://ccmixter.org/view/media/samples/mixed', 'http://ccmixter.org/view/media/remix', 'http://mp3.com/top-downloads/genre/jazz/', 'http://mp3.com/top-downloads/genre/emo/', 'http://mp3.com/top-downloads/genre/pop/'}
 	EOF
 	sudo mv $tmp_file '/etc/PlayMusic.settings'
 	rm $tmp_file &>/dev/null # just in case ..
@@ -54,7 +54,7 @@ function Find {
 declare -A Tracks;clear;echo 'Loading Sites ..'
 for SITE in $SITES;do # Looping through all sites specified
 	for site in $(lynx -source "$SITE" | egrep -o 'http://.*\.mp3');do # Grabbing all music links ( newline delimeted )
-		name="$(echo $site | sed -Ee 's/_/ /g' -e 's#.*/##g' -e 's#.*- ##g' -e 's#.mp3##g' -e 's#.*%2D ##g')" # Filtering names out of sites ..
+		name="$(echo $site | sed -E -e 's/_/ /g' -e 's#.*/##g' -e 's#.mp3##g' -e 's#.*%2D ##g' -e 's#%2B# #g' -e "s#%2527#\'#g" -e 's#%2528#(#g' -e 's#%2529#)#g')" # Filtering names out of sites ..
 		Tracks[$name]="$site" # Adding the name as the key, and the site as the value
 	done
 done;clear # Clear anything there is on the screen ( It should be already cleared, so this re-positions the view if the user changed it ( which is very likely ) ) ..
