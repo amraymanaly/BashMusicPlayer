@@ -3,7 +3,7 @@ cd "${0%/*}";function IsYes { d=$(echo $1 | tr [[:upper:]] [[:lower:]]);if ([[ "
 if [[ -x '/usr/bin/apt-get' ]];then
 	echo 'Checking Needed Programs ..'
 	sudo apt-get install axel mplayer2 lynx
-fi;if [[ ! -x '/usr/bin/axel' ]];then echo 'Please Install axel first ( CommandLine downloader ) ..';exit 2
+fi;if [[ ! -x '/usr/bin/wget' ]];then echo 'Please Install wget first ( CommandLine downloader ) ..';exit 2
 elif [[ ! -x '/usr/bin/mplayer' ]];then echo 'Please Install mplayer ( CommandLine media player ) ..';exit 2
 elif [[ ! -x '/usr/bin/lynx' ]];then echo 'Please Install mplayer ( CommandLine browser ) ..';exit 2;fi
 if [[ -x '/usr/bin/PlayMusic' ]] && [[ -f '/usr/share/man/man1/PlayMusic.1.gz' ]];then
