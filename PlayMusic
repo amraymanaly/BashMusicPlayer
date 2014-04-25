@@ -37,7 +37,7 @@ while getopts rsvu opt;do # Getting options
 	case $opt in
 		r) recursive=true;; # The variable for checking wether to play music recursively or not ..
 		s ) sudo rm '/etc/PlayMusic.settings' &>/dev/null;create_settings_file;notify-send "Settings File Recreated Successfully !";exit 0;;
-		v ) sudo subl '/etc/PlayMusic.settings';exit 0;;
+		v ) read -p 'Editor ? ';sudo $REPLY '/etc/PlayMusic.settings';exit 0;;
 		u ) read -p 'Are you sure you want to UnInstall ? ';if IsYes $REPLY;then UNINSTALL;fi;;
 	esac
 done
