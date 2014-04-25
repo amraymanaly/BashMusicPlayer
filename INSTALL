@@ -9,19 +9,21 @@ elif [[ ! -x '/usr/bin/lynx' ]];then echo 'Please Install mplayer ( CommandLine 
 if [[ -x '/usr/bin/PlayMusic' ]] && [[ -f '/usr/share/man/man1/PlayMusic.1.gz' ]];then
 	read -p 'PlayMusic is already installed ! Do You want to uninstall it first ( this is necessary for installation ) ? '
 	if IsYes $REPLY;then
-		sudo rm '/usr/bin/PlayMusic'
-		sudo rm '/usr/share/man/man1/PlayMusic.1.gz'
-		if [[ -f '/etc/PlayMusic.settings' ]];then
-			read -p 'Do you want to keep your settings ? '
-			if ! IsYes $REPLY;then sudo rm '/etc/PlayMusic.settings';fi
-		fi
+		PlayMusic -u || {
+			sudo rm '/usr/bin/PlayMusic'
+			sudo rm '/usr/share/man/man1/PlayMusic.1.gz'
+			if [[ -f '/etc/PlayMusic.settings' ]];then
+				read -p 'Do you want to keep your settings ? '
+				if ! IsYes $REPLY;then sudo rm '/etc/PlayMusic.settings';fi
+			fi; }
 	else exit 1;fi
 fi
 if [[ $? == 0 ]];then
-	sudo cp 'PlayMusic' '/usr/bin/PlayMusic'
+	sudo cp 'PlayMusic' '/usr/bin/'
 	sudo chmod +x '/usr/bin/PlayMusic'
-	sudo cp 'PlayMusic.1.gz' '/usr/share/man/man1/PlayMusic.1.gz'
-	echo 'Installation Complete !'
+	sudo gzip 'PlayMusic.1'
+	sudo cp 'PlayMusic.1.gz' '/usr/share/man/man1/'
+	echo 'Installation Complete .. !'
 else
-	echo 'Error !'
+	echo "Error ($?) !"
 fi
