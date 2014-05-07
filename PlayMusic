@@ -89,8 +89,8 @@ function DOWNLOAD {
 function UNINSTALL {
     read -p 'Do you want to keep settings ? '
     IsYes $REPLY || rm "$HOME/.config/PlayMusic/PlayMusic.settings"
-    sudo rm '/usr/local/bin/PlayMusic' &&
-    sudo rm '/usr/local/man/man1/PlayMusic.1.gz' &&
+    sudo rm '/usr/bin/PlayMusic' &&
+    sudo rm '/usr/share/man/man1/PlayMusic.1.gz' &&
     echo 'Uninstallation Success !' && exit 0
 }
 function load_sites {
