@@ -1,12 +1,14 @@
-.TH PlayMusic 1 "25 April 2014" "1.1" "PlayMusic Manual"
+.TH PlayMusic 1 "7 May 2014" "1.4" "PlayMusic Manual"
 .SH NAME
 PlayMusic - Play/Download Music ..
+.br
+\fBVersion\fP - 1.4
 .SH SYNOPSIS
 .B PlayMusic
 .RI [OPTIONS]
 .br
 .SH DESCRIPTION
-Play Music is a simple entertainment utility that is made mainly for music lovers .. It can play music online, download it .. and provide you with the latest music from sites provided in the settings file .. (it can alsobe easily extended as a bash script)
+PlayMusic is a simple entertainment utility .. It can play music online, download it .. and provide you with the latest music from sites provided in the settings file .. (it can also be easily extended as a bash script)
 .SH OPTIONS
 .IP \fB\-r\fP
 Play Music Recursively ..
@@ -16,6 +18,35 @@ ReCreate the Settings File ..
 Uninstall the program ..
 .IP \fB\-v\fP
 View Settings File ..
+.IP \fB\-p\fP
+Force Play Track Online ..
+.IP \fB\-d\fP
+Force Download Track ..
+.IP \fB\-a\fP
+Do this for everything in the list ..
+.IP \fB\-D\fP
+Turn on \fBDouble Check\fP mode ..
+.SH Double Check Mode
+This mode makes sure everything is fine each and every second .. This mode is recommended for high speed computers .. It would have been default only if it wasn't really slow ..
+.br
+\fBThis mode's features are\fP :-
+.br
+\fB-\fP Make Sure Music isn't Duplicated (really slow, and usually not necessary) ..
+.SH The Settings File
+Note that the settings file follows a very strict order, as follows ..
+.br
+\fBThe First Line:\fP
+Command used to invoke the player ..
+.br
+\fBThe Second Line:\fP
+true if you want to enable dropbox integration, false if not .. ( if the second line was filled by something else, it will be treated as a site if it starts with 'http', else it is going to treated as a comment (ignored) )
+.br
+\fBAny Other Line:\fP
+it will be considered as a site if not either empty or starting with a hash (\fB#\fP) sign ..
+.br
+\fBNote That:\fP
+Anything Coming after a hash \fB#\fP sign will be considered as a comment ..
+.br
 .SH Exit Codes
 .IP \fB0\fP
 Everything went Fine ..
