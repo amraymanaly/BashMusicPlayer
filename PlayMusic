@@ -1,33 +1,36 @@
 #!/bin/bash
-mkdir -p "$HOME/Music" ; cd "$HOME/Music" ; clear # So that any download will be in the music directory
-######################################### Initial Values and Declarations ######################################
-##### needed files & folders
-declare -r settings_file="$HOME/.config/PlayMusic/PlayMusic.settings" ; declare -r log_file="$HOME/Desktop/PlayMusic_log.log" ; declare dropbox=false
+mkdir -p "$HOME/Music"
+cd "$HOME/Music" ; clear # So that any download will be in the music directory
+######################################### Initial Values and Declarations #############################
 ##### needed global variables
-declare SITES=() ; declare -A Tracks ; declare FILE ; declare times_to_play=1
+declare -r settings_file="$HOME/.config/PlayMusic/PlayMusic.settings" log_file="$HOME/Desktop/PlayMusic_log.log" # readonly variables
+declare -A Tracks # names are keys, sites are values
+declare FILE times_to_play=1 SITES=()
 ##### options & features
-declare no_choice=true ; declare just_download=false ; declare double_check=false
-declare all=false ; declare player='mplayer'
-############################################## Functions ##############################################
+declare chosen=false dropbox=false just_download=false double_check=false all=false player='mplayer'
+############################################## Functions ###################################
 function Play { # Function for playing music according to user preferences
-    [[ ${#1} -lt 23 ]] &&
+    if [[ ${#1} -lt 23 ]];then
         notify-send "Now Playing: \"$1\" .." "$track" # Notifing the user, only if the track's name isn't too long
-    for ((i=0 ;  i<times_to_play ;  i++));do $player "$1";done
+    fi
+    for (( i=0 ;  i < times_to_play ; i++ ));do
+        $player "$1"
+    done
 }
 function Find { # function to look for a previously downloaded file on disk
-    local IFS=$'\n' ; local REPLY ; unset FILE
+    local IFS=$'\n' ; unset FILE
     echo "Looking for '$1' on disk .. "
     local files=$(find ~ -name "$1*.mp3" 2>/dev/null) ; clear # The main file ( the found file, or null if not found ) ..
     if [[ $(echo "$files" | wc -l) -gt 1 ]];then # what to do if more than one file was found ..
         local file
         if ! $all;then # if the user is likely to be sitting on his computer and not sleeping ..
             echo 'File was found at various places .. Which one to use ?'
-            select file in $files ;  do
-                [[ -n $file ]] || continue
+            select file in $files "Cancel" ;  do
+                [[ -n "$file" ]] || continue
+                [[ "$file" == 'Cancel' ]] && exit 0
                 FILE="$file" ; break
             done
-            read -p 'Do you want to Delete the other ones ? '
-            if IsYes $REPLY;then
+            if IsYes -p 'Do you want to Delete the other ones ? ';then
                 for file in $files;do
                     [[ "$file" == "$FILE" ]] || rm "$file"  # removing the file if not the selected file
                 done
@@ -35,23 +38,22 @@ function Find { # function to look for a previously downloaded file on disk
         else
             file="${files[0]}" # getting the nearest file
             mv -f "$file" "$HOME/Music" # moving it to the music directory
-            FILE="$HOME/Music/$(basename ${files[0]})" # getting that file
-            for file in $files;do [[ "$file" == "$FILE" ]] || rm "$file";done # removing other files
+            FILE="$HOME/Music/$(basename "${files[0]}")" # getting that file
+            for file in $files;do
+                [[ "$file" == "$FILE" ]] || rm "$file"
+            done
         fi
-    else FILE="$files" ; fi ; clear
-}
-function IsYes {
-    d=$(echo $1 | tr [[:upper:]] [[:lower:]])
-    if ([[ "${d:0:1}" == 'y' ]] && [[  "${#d}" -le 4 ]]) || [[ $d == 'ok' ]];then return 0 ;  else return 1 ; fi
+    else FILE="$files"
+    fi ; clear
 }
 function IsNum {
-    [[ "$1" =~ ^[0-9]+$ ]] && return 0 || return 1
+    return $([[ "$1" =~ ^[0-9]+$ ]] && echo 0 || echo 1)
 }
 function create_settings_file {
-    mkdir -p "$(dirname $settings_file)"
+    mkdir -p "$(dirname "$settings_file")"
     cat > "$settings_file" <<- EOF # the default music settings file
-mplayer # the first line is always the media player
-false # the second line is always for integration with dropbox
+$player # the first line is always the media player
+$dropbox # the second line is always for integration with dropbox
 # other than that is only sites ..
 http://ccmixter.org/view/media/samples/mixed
 http://ccmixter.org/view/media/remix
@@ -76,8 +78,9 @@ function DOWNLOAD {
     Find "$track" # Looking for the specified track on disk
     if [[ -n $FILE ]] ;then # if the track was found on disk
         [[ $(dirname "$FILE") == "$HOME/Music" ]] || { # if the found file is not in the music directory
-            notify-send "$track was found at ($(dirname $FILE)) and was moved to ($HOME/Music)" # inform the user of the changes
-            mv -f "$FILE" "$HOME/Music" &>/dev/null ; FILE="$HOME/Music/$name" # move the file to the music home directory
+            notify-send "$track was found at ($(dirname "$FILE")) and was moved to ($HOME/Music)" # inform the user of the changes
+            mv -f "$FILE" "$HOME/Music" &>/dev/null # move the file to the music home directory
+            FILE="$HOME/Music/$name" # updating info
         }
         name="$FILE"
     fi
@@ -87,19 +90,18 @@ function DOWNLOAD {
     $1 && Play "$name"
 }
 function UNINSTALL {
-    read -p 'Do you want to keep settings ? '
-    IsYes $REPLY || rm "$HOME/.config/PlayMusic/PlayMusic.settings"
+    IsYes -p 'Do you want to keep settings ? ' || rm "$HOME/.config/PlayMusic/PlayMusic.settings"
     sudo rm '/usr/bin/PlayMusic' &&
-    sudo rm '/usr/share/man/man1/PlayMusic.1.gz' &&
-    echo 'Uninstallation Success !' && exit 0
+    sudo rm '/usr/man/man1/PlayMusic.1.gz' &&
+    echo 'Uninstallation Success !' ; exit 0
 }
 function load_sites {
     local counter=0
     for SITE in "${SITES[@]}";do
-        echo -e "\tSite #$((++counter)): '$SITE'"
+        echo -e "\t\033[30;3mSite \033[37m#\033[1m$((++counter))\033[0m\033[30;3m: '\033[1;33;3m$SITE\033[1;30;3m'\033[0m"
         for site in $(lynx -source "$SITE" | egrep -o 'http://.*\.mp3');do # Grabbing all music links ( newline delimeted )
-            local name="$(echo $site |
-                sed -Ee 's/_/ /g' -e 's@.*/@@g' -e 's@.mp3@@g' -e 's@.*(%2D|-) @@g' -e 's@%2B@ @g' |
+            local name="$(echo "$site" |
+                sed -Ee 's@_@ @g' -e 's@.*/@@g' -e 's@.mp3@@g' -e 's@.*(%2D|-) @@g' -e 's@%2B@ @g' |
                 sed -Ee "s@%2527@'@g" -e 's@%2528@(@g' -e 's@%2529@)@g' -e 's@.* - @@' |
                 sed -Ee "s@(\w+) (s$|s )@\1'\2@")" # Filtering names out of sites ..
             echo "$name" | grep -q '%' && continue # continue if name couldn't be correctly formatted
@@ -116,31 +118,28 @@ function load_sites {
     done ; clear
     if [[ ${#Tracks[@]} == 0 ]];then
         echo 'No Music was Found ! '
-        echo 'Please either check your internet connection or recreate the settings file using "( '"$(basename $0) -s )"'"' >&2
+        echo 'Please either check your internet connection or recreate the settings file using "( '"$(basename "$0") -s )"'"' >&2
         exit 1
     fi
 }
 function parse_settings  { # function to parse settings file
-    local IFS=$'\n' ; local line_number=0 ; local REPLY
+    local line_number=0 ; local line
     if [[ -f "$settings_file" ]];then
-        for line in $(cat "$HOME/.config/PlayMusic/PlayMusic.settings"|
-            sed -Ee 's/^ +//g' -e 's/(.*) *#.*/\1/g' -e 's/( *)$//g' -e 's/ *#.*//g')
-        do
+        while read -r line;do
             [[ -n $line ]] || continue
             case $((++line_number)) in
                 1 ) player="$line" ;;
-                2 ) if [[ "$line" =~ https?:.+ ]];then # if a site ..
+                2 ) if echo "$line" | egrep -q 'https?:.+' ]];then # if a site ..
                         SITES[${#SITES[@]}]="$line" # add it
                     else # if not ..
                         [[ "$line" == 'true' ]] && dropbox=true || dropbox=false # if anything else, ignored ..
                     fi ; $dropbox && mkdir -p "$HOME/Dropbox/Music" ;;
                 * ) SITES[${#SITES[@]}]="$line" ;;
             esac
-        done
+        done < <(sed -Ee 's/^ +//g' -e 's/(.*) *#.*/\1/g' -e 's/( *)$//g' -e 's/ *#.*//g' -e 's/ /%20/g' "$settings_file")
     else
         notify-send "Settings File not Found .. !"
-        read -p "You haven't created your settings file .. Do you want to create it ? ";
-        if IsYes "$REPLY";then
+        if IsYes -p "You haven't created your settings file .. Do you want to create it ? ";then
             create_settings_file false
         else
             echo 'Then, The Default settings are going to be used this time ..'
@@ -157,7 +156,21 @@ function EVERYTHING {
             $just_download && DOWNLOAD false || Play "${Tracks[$track]}"
         done ; exit 0
 }
-############################################### Parsing Arguments #################################
+function usage {
+    cat <<- EOF
+PlayMusic [OPTION]
+-s              ReCreate the Settings file ..
+-r [number]     Set the number of times a track should be played ..
+-v              View the Settings file ..
+-u              Uninstall the Program ..
+-d              Force download ..
+-p              Force play ..
+-a              -d / -p applies for everything in the list, so everything will be downloaded/played automatically ..
+-D              Turn on double check mode ..
+--version   Show Program Info ..
+EOF
+}
+############################################### Parsing Arguments ########################
 [[ "$1" == '--version' ]] && { echo 'PlayMusic v1.3, Licence:GPL3' ; exit 0 ;  } # giving the version
 while getopts r:svdupaD opt;do # Getting options
     case $opt in
@@ -168,31 +181,38 @@ while getopts r:svdupaD opt;do # Getting options
                 echo 'Invalid Number of Times ..' >&2
             fi
         ;;
-        s ) create_settings_file true ; notify-send "Settings File Recreated Successfully !" ; exit 0 ;;
-        v ) read -p 'Editor ? ' ; REPLY="${REPLY=nano}" ; $REPLY "$HOME/.config/PlayMusic/PlayMusic.settings" ; exit 0 ;;
-        u ) read -p 'Are you sure you want to UnInstall ? ' ; IsYes $REPLY && UNINSTALL ;;
-        d ) just_download=true ; no_choice=false ;; # download without asking
-        p ) just_download=false ; no_choice=false ;; # play online without asking
+        s ) create_settings_file true ; notify-send "Settings File Recreated Successfully !"  ; exit 0 ;;
+        v ) read -p 'Editor ? ' editor
+             if [[ -z "$editor" ]] || ! which "$editor" &>/dev/null;then
+                editor='nano'
+             fi ; $editor "$HOME/.config/PlayMusic/PlayMusic.settings" ; exit 0 ;;
+        u ) IsYes -p 'Are you sure you want to UnInstall ? ' && UNINSTALL ;;
+        d ) just_download=true ; chosen=true ;; # download without asking
+        p ) just_download=false ; chosen=true ;; # play online without asking
         a ) all=true ;;
         D ) double_check=true ;; # turn on double check mode ( it is an experimantal feature for now .. )
+        \? ) usage ; exit 2;;
     esac
 done
-if $all && $no_choice;then echo "All what ? use -d or -p option to specify what to do with each of them .." >&2 ; exit 2 ; fi
-############################################### Starting Work #####################################
-parse_settings ; clear ; echo "Loading (${#SITES[@]}) Sites .." ; load_sites ; $all && EVERYTHING
+if $all && ! $chosen;then echo "All what ? use -d or -p option to specify what to do with each of them .." >&2 ; exit 2 ; fi
+############################################### Starting Work ##########################
+parse_settings ; clear
+echo -e "\033[0;37mLoading (\033[1m${#SITES[@]}\033[0;37m) Sites .."
+load_sites ; $all && EVERYTHING
 select track in "${!Tracks[@]}";do # interacting with the USER ..
     [[ -n $track ]] || continue # Continues the loop if choice is empty ( meaning that user's choice wasn't appropriate ) ..
-    clear
-    if ! $no_choice;then # if the user already specified something to do as an option ( -d / -p )
+    printf '\033[0m' ; clear
+    if $chosen;then # if the user already specified something to do as an option ( -d / -p )
         $just_download && DOWNLOAD true || Play "${Tracks[$track]}"
         exit 0
     else
-        select opt in "Download then Play" "Just Download" "Play Online";do
+        select opt in "Download then Play" "Just Download" "Play Online" "Play then ask to download";do
             [[ -n "$opt" ]] || continue
             case "$opt" in
                 "Play Online") Play "${Tracks[$track]}" ;;
                 "Download then Play") DOWNLOAD true ;;
                 "Just Download") DOWNLOAD false ;;
+                "Play then ask to download") Play "${Tracks[$track]}" ; IsYes -p 'Do you want to download it ? ' && DOWNLOAD false;;
             esac
             exit 0
         done
