@@ -1,0 +1,101 @@
+#!/bin/bash
+#
+# Script to check user verification .. [Y/N]
+#
+#
+
+declare prompt reply GRAPHICAL=false
+
+function usage {
+    p="\
+    $(basename "$0")\t[REPLY]\t-> checks if REPLY validates to Yes or No
+    $(basename "$0")\t-p [PROMPT] ->  Instead of just checking REPLY, PROMPT will be asked to the user and evaluated as Yes or No
+    $(basename "$0")\t-g -p [PROMPT] -> prompts in a CLI Graphical-like interface
+    "
+    $1 && echo -e "$p" >&1 || echo -e "$p" >&2
+    exit $( $1 && echo 0 || echo 2 )
+}
+
+for i in ${@:1};do
+    [[ "$i" == '--help' ]] && usage true
+done
+
+if [[ "$1" == '-pg' ]] && [[ -n "$2" ]];then
+    set -- '-gp' "$2"
+fi
+
+while getopts gp: opt 2>/dev/null;do
+    case $opt in
+        'p' ) prompt="$OPTARG";;
+        'g' ) GRAPHICAL=true;;
+        \? ) usage false;
+    esac
+done
+
+if [[ $# -ne 1 ]] && [[ $# -ne 2 ]] && [[ $# -ne 3 ]];then
+    usage false
+fi
+
+trap 'echo;exit 1' INT
+trap 'echo;exit 1' KILL
+trap 'echo;exit 1' TERM
+trap 'echo;exit 1' QUIT
+
+if ( $GRAPHICAL );then
+    [[ -n "$prompt" ]] || usage false
+
+    if [[ "@$prompt" == "@-g" ]];then
+        [[ $# -eq 3 ]] && prompt="$3" || usage false
+    fi
+
+# read
+
+    declare height=8
+    declare width=$((${#prompt} * 2 + 10))
+
+    f=$(mktemp 2>/dev/null) && {
+        dialog --print-maxsize 2>"$f"
+        size="$(sed -E 's/^.+: ([0-9]+), ([0-9]+)$/\1:\2/' "$f")"
+        rm "$f"
+        maxwidth="$(cut -d: -f2 <<< "$size")"
+        maxheight="$(cut -d: -f1 <<< "$size")"
+    } || declare maxwidth=38 maxwidth=150
+
+    declare -r maxheight maxwidth
+
+    while [[ $width -gt $maxwidth ]];do
+        ((width-=10))
+        if [[ $height -le $((maxheight - 2)) ]];then
+            ((height+=2))
+        fi
+    done
+    exec dialog --yesno "$prompt" $height $width
+fi
+
+if ( [[ -z "$prompt" ]] && [[ $# -ne 1 ]] ) || ( ! $GRAPHICAL && [[ $# -ne 2 ]] ) ;then
+    usage false
+fi
+
+if [[ -n "$prompt" ]];then
+    for((i=0; 1; ++i));do
+        [[ "$i" -gt 0 ]] && echo "Please type either yes or no .." >&2
+        echo -en "$prompt"
+        read reply
+        ([[ "$reply" != 'yes' ]] && [[ "$reply" != 'no' ]]) || break;
+    done
+    [[ "$reply" == 'yes' ]]
+else
+    reply="$1"
+    IFS=$' \n\t'
+    for i in $(echo $reply);do
+        reply="$i"
+        break # get the first word
+    done
+
+    reply="$(echo "$1" | tr '[[:upper:]]' '[[:lower:]]' 2>/dev/null)" || exit 1
+    reply="$(echo "$reply" | sed -E 's/ *$//')"
+    
+    ( ([[ "${reply:0:1}" == 'y' ]] && [[  "${#reply}" -le 4 ]]) || [[ $reply == 'ok' ]] || [[ $reply == 'sure' ]] )
+fi
+
+exit $?
