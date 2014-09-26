@@ -67,7 +67,7 @@ Find() { # looks for a previously downloaded file on disk
 }
 
 IsNum() {
-    return $([[ "$1" =~ ^[0-9]+$ ]] && echo 0 || echo 1)
+    [[ "$1" =~ ^[0-9]+$ ]]
 }
 
 create_settings_file() {
@@ -76,6 +76,7 @@ create_settings_file() {
     cat > "$settings_file" <<-EOF
 $player # the first line is always the media player
 $dropbox # the second line is always for integration with dropbox
+$log_file # the third line is always for the log file location
 # other than that is only sites ..
 http://ccmixter.org/view/media/samples/mixed
 http://ccmixter.org/view/media/remix
@@ -193,6 +194,7 @@ parse_settings()  { # parses settings file
                         mkdir -p "$HOME/Dropbox/Music"
                     fi
                     ;;
+                3 ) log_file="$(realpath "$line")" ;;
                 * ) SITES[${#SITES[@]}]="$line";;
             esac
 
