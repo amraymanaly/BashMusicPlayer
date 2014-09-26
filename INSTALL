@@ -1,29 +1,61 @@
 #!/bin/bash
-cd "${0%/*}";function IsYes { d=$(echo $1 | tr [[:upper:]] [[:lower:]]);if ([[ "${d:0:1}" == 'y' ]] && [[  "${#d}" -le 4 ]]) || [[ $d == 'ok' ]];then exit 0; else exit 1;fi; }
-if [[ -x '/usr/bin/apt-get' ]];then
-	echo 'Checking Needed Programs ..'
-	sudo apt-get install axel mplayer2 lynx
-fi;if [[ ! -x '/usr/bin/wget' ]];then echo 'Please Install wget first ( CommandLine downloader ) ..';exit 2
-elif [[ ! -x '/usr/bin/mplayer' ]];then echo 'Please Install mplayer ( CommandLine media player ) ..';exit 2
-elif [[ ! -x '/usr/bin/lynx' ]];then echo 'Please Install mplayer ( CommandLine browser ) ..';exit 2;fi
+cd "${0%/*}" &>/dev/null
+IsYes() {
+    for((i=0; 1; ++i));do
+        [[ "$i" -gt 0 ]] && echo "Please type either yes or no .." >&2
+        echo -en "$1"
+        read reply
+        ([[ "$reply" != 'yes' ]] && [[ "$reply" != 'no' ]]) || break;
+    done
+    [[ "$reply" == 'yes' ]]
+    return $?
+}
+
+declare -r DEPENDENCIES="curl:wget:mplayer"
+
+check() {
+    local IFS=':'
+    for i in $DEPENDENCIES ; do
+        if [[ -z "$(which "$i")" ]] ; then
+            echo "$i not installed (needed by PlayMusic)" >&2
+            exit 2
+        fi
+    done
+}
+
+check
+
 if [[ -x '/usr/bin/PlayMusic' ]] && [[ -f '/usr/share/man/man1/PlayMusic.1.gz' ]];then
-	read -p 'PlayMusic is already installed ! Do You want to uninstall it first ( this is necessary for installation ) ? '
-	if IsYes $REPLY;then
-		PlayMusic -u || {
-			sudo rm '/usr/bin/PlayMusic'
-			sudo rm '/usr/share/man/man1/PlayMusic.1.gz'
-			if [[ -f '/etc/PlayMusic.settings' ]];then
-				read -p 'Do you want to keep your settings ? '
-				if ! IsYes $REPLY;then sudo rm '/etc/PlayMusic.settings';fi
-			fi; }
-	else exit 1;fi
+    read -p 'PlayMusic is already installed ! Do You want to uninstall it first ( this is necessary for installation ) ? '
+    if IsYes $REPLY;then
+        if ! /usr/bin/PlayMusic -u ; then
+            # Uninstalling manually
+            sudo rm '/usr/bin/PlayMusic'
+            sudo rm '/usr/share/man/man1/PlayMusic.1.gz'
+            if [[ -f '/etc/PlayMusic.settings' ]] ; then
+                if ! IsYes 'Do you want to keep your settings ? ' ; then
+                    sudo rm "$HOME/.config/PlayMusic.settings"
+                fi
+            fi
+        fi
+    else
+        exit 1
+    fi
 fi
-if [[ $? == 0 ]];then
-	sudo cp 'PlayMusic' '/usr/bin/'
-	sudo chmod +x '/usr/bin/PlayMusic'
-	sudo gzip 'PlayMusic.1'
-	sudo cp 'PlayMusic.1.gz' '/usr/share/man/man1/'
-	echo 'Installation Complete .. !'
-else
-	echo "Error ($?) !"
-fi
+
+install() {
+    echo "Installing $1 .."
+    sudo cp "$1" '/usr/bin/' &&
+    sudo chmod +x "/usr/bin/$1" &&
+    sudo gzip "$1.1" &&
+    sudo cp "$1.1.gz" '/usr/share/man/man1/' &&
+    echo "Installed $1 successfully !" || {
+        echo "Failed to install $1"
+        exit 1
+    }
+}
+
+install 'IsYes'
+install 'PlayMusic'
+echo "Success!"
+exit 0
