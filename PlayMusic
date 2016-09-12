@@ -6,7 +6,7 @@ clear
 ############## Initial Values and Declarations ##############
 ##### needed global variables
 declare -r settings_file="$HOME/.config/PlayMusic.settings"
-declare -r log_file="$HOME/Desktop/PlayMusic_log.log"
+declare log_file="$HOME/Desktop/PlayMusic_log.log"
 declare -A Tracks # names are keys, sites are values
 declare FILE times_to_play=1 SITES=()
 ##### options & features
@@ -114,7 +114,7 @@ DOWNLOAD() {
     notify-send "Downloading ($track) .." "in [ $PWD ] .."
     wget -cO "$name" "${Tracks[$track]}"
 
-    if $dropbox ; then 
+    if $dropbox ; then
         cp "$name" "$HOME/Dropbox/Music"
     fi
     if $1 ; then
@@ -181,13 +181,13 @@ parse_settings()  { # parses settings file
 
             case $((++line_number)) in
                 1 ) player="$line" ;;
-                2 ) if echo "$line" | egrep -q 'https?:.+' ]] ; then # if a site ..
+                2 ) if egrep -q 'https?:.+' <<< "$line" ; then # if a site ..
                         SITES[${#SITES[@]}]="$line" # add it
                     else # if not ..
                         if [[ "$line" == 'true' ]] ; then
                             dropbox=true
                         else # if anything else, ignored ..
-                            dropbox=false 
+                            dropbox=false
                         fi
                     fi
                     if $dropbox ; then
@@ -253,16 +253,16 @@ EOF
 
 parse_args() { # parses command line arguments
 
-    for i in $@ ; do
-        if [[ "$i" == '--version' ]] ; then 
+    for i in "$@" ; do
+        if [[ "$i" == '--version' ]] ; then
             # giving the version
             echo 'PlayMusic v1.3, Licence:GPL3'
             exit 0
         fi
     done
 
-    for i in $@ ; do
-        if [[ "$i" == '--help' ]] ; then 
+    for i in "$@" ; do
+        if [[ "$i" == '--help' ]] ; then
             # giving help
             usage
             exit 0
