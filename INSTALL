@@ -1,14 +1,11 @@
 #!/bin/bash
-cd "${0%/*}" &>/dev/null
+cd "${0%/*}" &>/dev/null || exit 1
 IsYes() {
     for((i=0; 1; ++i));do
-        [[ "$i" -gt 0 ]] && echo "Please type either yes or no .." >&2
-        echo -en "$1"
-        read reply
-        ([[ "$reply" != 'yes' ]] && [[ "$reply" != 'no' ]]) || break;
+        read -p "$1 [y/n]: "
+        ([[ "$REPLY" != 'yes' ]] && [[ "$REPLY" != 'no' ]]) || break
     done
-    [[ "$reply" == 'yes' ]]
-    return $?
+    [[ "$REPLY" == 'yes' ]]
 }
 
 declare -r DEPENDENCIES="curl:wget:mplayer"
@@ -26,8 +23,7 @@ check() {
 check
 
 if [[ -x '/usr/bin/PlayMusic' ]] && [[ -f '/usr/share/man/man1/PlayMusic.1.gz' ]];then
-    read -p 'PlayMusic is already installed ! Do You want to uninstall it first ( this is necessary for installation ) ? '
-    if IsYes $REPLY;then
+    if IsYes 'PlayMusic is already installed ! Do You want to uninstall it first ( this is necessary for installation ) ? ' $REPLY;then
         if ! /usr/bin/PlayMusic -u ; then
             # Uninstalling manually
             sudo rm '/usr/bin/PlayMusic'
